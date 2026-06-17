@@ -1,1 +1,64 @@
+import streamlit as streamlit
+from openai import OpenAI
+import random
+
+# 1. 페이지 기본 설정
+st.set_page_config(page_title="청소년 고민상담소: 푸른달", page_icon="🌱", layout="centered")
+
+# 2. 청소년을 위한 위로와 격려의 명언 리스트
+QUOTES = [
+    "“너는 네 생각보다 더 용감하고, 보기보다 더 강하며, 네 생각보다 더 똑똑해.” — 곰돌이 푸",
+    "“실패는 낙담의 원인이 아니라 신선한 자극이다.” — 토마스 에디슨",
+    "“지금 네가 겪는 폭풍은 영원히 지속되지 않아. 곧 비가 그치고 해가 뜰 거야.”",
+    "“남들과 다를 것을 두려워하지 마라. 정말 두려워해야 할 것은 남들과 똑같은 것이다.”",
+    "“네가 걸어가는 그 길 위에 흔들림이 있다면, 그건 네가 올바르게 성장하고 있다는 증거야.”",
+    "“실수하며 보낸 인생은 아무것도 하지 않은 인생보다 훨씬 존경스럽고 유용하다.” — 조지 버나드 쇼",
+    "“너의 가치는 시험 점수나 다른 사람의 말 한마디로 결정되지 않아. 너는 그 자체로 소중해.”"
+random_quote = random.choice(QUOTES)
+st.info(f"💡 **오늘의 마음 한 줄**\n\n{random_quote}")
+
+st.title("🌱 청소년 고민상담소 '푸른달'")
+st.subheader("학업, 친구 관계, 미래에 대한 불안... 혼자 앓지 말고 이야기해봐.")
+st.write("여기는 너만의 대나무숲이야. 어떤 이야기든 비밀이 보장되니 편하게 털어놓으렴.")
+try:
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+except KeyError:
+    st.error(".streamlit/secrets.toml 파일에 OpenAI API Key를 등록해주세요.")
+    st.stop()
+if "messages" not in st.session_state:
+    st.session_state.messages = 
+            "role": "system", 
+            "content":(  "당신은 청소년(중·고등학생)을 전문으로 상담하는 다정하고 친근한 20대 학교 상담 선생님입니다. "
+                "청소년들이 겪는 학업 스트레스, 친구 관계, 외모 고민, 진로 불안 등의 마음을 깊이 공감해주세요. "
+                "딱딱하고 어른스러운 말투 대신, '했구나', '그랬겠네', '~해봐요' 같은 따뜻하고 친근한 어조를 사용하세요. "
+                "절대 훈계하거나 가르치려 들지 말고, 든든한 내 편이 되어주는 대화를 이끌어가세요.")
+for message in st.session_state.messages:
+    if message["role"] != "system":
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+if user_input := st.chat_input("선생님에게 말하고 싶은 고민이 있나요?"):
+    
+    with st.chat_message("user"):
+        st.markdown(user_input)
+    st.session_state.messages.append({"role": "user", "content": user_input})
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = ""
+        
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=st.session_state.messages,
+                stream=True,
+            )
+for chunk in response:
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    message_placeholder.markdown(full_response + "▌")
+            message_placeholder.markdown(full_response)
+        except Exception as e:
+            st.error(f"상담 연결에 실패했습니다: {e}")
+
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
 
