@@ -1,110 +1,155 @@
-import streamlit as st
+import streamlit as streamlit
 import google.generativeai as genai
+import random
+from datetime import datetime
 
-# 1. 페이지 설정 및 디자인
+# 1. 페이지 기본 설정 (가장 최상단 배치)
 st.set_page_config(
-    page_title="마음나침반 - AI 연애 상담소",
-    page_icon="💖",
-    layout="centered"
-)
-
-# 간단한 커스텀 스타일 적용 (핑크 톤 테마)
+    page_title="하루 조각: 파스텔 마음 일기",
+    page_icon="🎨",
+    layout="centered")
 st.markdown("""
     <style>
-    .main-title { font-size: 2.2rem; font-weight: bold; color: #FF4B4B; text-align: center; margin-bottom: 5px; }
-    .sub-title { font-size: 1.1rem; color: #666; text-align: center; margin-bottom: 30px; }
+    /* 배경을 포근한 연보라/연민트 파스텔톤으로 설정 */
+    .stApp {
+        background-color: #F6F5FB; 
+    }
+    h1 {
+        color: #6C5B7B !important; /* 차분한 파스텔 보라 */
+        font-weight: 700;
+    }
+    h3 {
+        color: #7A9A95 !important; /* 차분한 파스텔 민트 */
+    }/* 버튼 스타일 디자인 */
+    .stButton>button {
+        background-color: #E8D7F1 !important; 
+        color: #4A3E56 !important;
+        border-radius: 15px !important;
+        border: none !important;
+        padding: 0.5rem 1.5rem !important;
+        font-weight: bold !important;
+        transition: all 0.2s ease;
+    }.stButton>button:hover {
+        background-color: #D6BCF7 !important;
+        transform: translateY(-1px);
+    }
+    /* 구조 박스 커스텀 */
+    div[data-testid="stForm"], .mood-box {
+        background-color: #FFFFFF !important;
+        border-radius: 16px !important;
+        padding: 1.8rem !important;
+        border: 1px solid #EAEAEA !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02) !important;
+        margin-bottom: 1rem;
+    }
     </style>
 """, unsafe_allow_html=True)
+FAMOUS_QUOTES = [
+    "“만약 한 사람이 교육을 소홀히 한다면, 그는 생이 다할 때까지 한 발을 절며 걷는 것이다.” - 플라톤",
+    "“만약 당신이 그것을 꿈꾼다면, 당신은 그것을 할 수 있다.” - 월트 디즈니",
+    "“행복은 종종 당신이 열어둔 지도 몰랐던 문을 통해 살금살금 들어온다.” - 존 베리모어",
+    "“당신이 성장할 때, 세상도 함께 성장한다.” - 존 F. 케네디",
+    "“당신이 할 수 있다고 믿든, 할 수 없다고 믿든, 믿는 대로 될 것이다.” - 헨리 포드",
+    "“우리가 걷는 길은 항상 옳은 길은 아니다. 그러나 계속 걷다 보면 그 길이 옳은 길이 될 수도 있다.” - 헨리 드루먼드",
+    "“성공하려면 실패를 맛봐야 한다. 실패는 성공의 어머니다.” - 앨버트 아인슈타인",
+    "“가장 위대한 영광은 결코 실패하지 않은 것이 아니라, 실패를 거듭하더라도 다시 일어서는 것이다.” - 넬슨 만델라",
+    "“당신이 성공하기를 바라면, 다른 사람들을 돕고, 그들이 성공할 수 있도록 도와주세요.” - 부영우",
+    "“성취하려면 대담하게 꿈꾸고, 끈질기게 실행해 나가야 한다.” - 월트 디즈니",
+    "“인생은 진리를 찾는 여정이다.” - 마하트마 간디",
+    "“우리가 어려움을 극복할 때, 우리는 더욱 강해진다.” - 스티브 버트튼",
+    "“때로는 실패가 우리를 올바른 길로 인도할 수 있다.” - J.K. 롤링"
+]
+if "today_quote" not in st.session_state:
+    st.session_state.today_quote = random.choice(FAMOUS_QUOTES)
 
-st.markdown('<div class="main-title">💖 마음나침반 AI 연애 상담소</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">말하기 어려운 연애 고민, AI 카운셀러가 따뜻하고 솔직하게 들어드릴게요.</div>', unsafe_allow_html=True)
-
-# 2. API 키 설정 및 예외 처리
-# Streamlit Cloud의 Secrets 기능을 사용하거나, 로컬 테스트용 설정을 지원합니다.
-if "GEMINI_API_KEY" in st.secrets:
-    api_key = st.secrets["GEMINI_API_KEY"]
-else:
-    # 로컬 테스트 시 사이드바에서 입력 가능하도록 예외 처리
-    api_key = st.sidebar.text_input("Gemini API Key를 입력하세요", type="password")
-
-if not api_key:
-    st.info("💡 앱을 시작하려면 Streamlit Secrets 또는 사이드바에 'GEMINI_API_KEY'를 설정해주세요.", icon="🔑")
-    st.stop()
-
-# Gemini 모델 초기화
+# 가상의 기분 저장소 초기화 (초보자용으로 별도 DB 연결 없이 세션 메모리에 저장 및 한 달 단위 연동)
+if "mood_history" not in st.session_state:
+    st.session_state.mood_history = [
+        {"date": "2026-06-01", "mood": "😊 기쁨", "note": "모의고사 성적이 조금 올랐다!"},
+        {"date": "2026-06-05", "mood": "😭 슬픔", "note": "친구랑 사소한 일로 다퍘다. 마음이 불편하다."}
+    ]
+    st.info(f"💌 **오늘 너를 안아줄 한 줄의 문장**\n\n{st.session_state.today_quote}")
+    st.title("🎨 하루 조각: 파스텔 마음 일기")
+st.write("오늘 네 마음에 머문 감정 이모지를 선택하고 무거운 짐을 이곳에 털어내보렴.")
+st.markdown("---")
 try:
-    genai.configure(api_key=api_key)
-    # 기획 요구사항에 따른 gemini-2.5-flash-lite 모델 지정
+    gemini_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=gemini_key)
     model = genai.GenerativeModel("gemini-2.5-flash-lite")
-except Exception as e:
-    st.error(f"API 초기화 중 오류가 발생했습니다: {e}")
+except KeyError:
+    st.error("⚠️ Secrets 설정에 'GEMINI_API_KEY'가 누락되었습니다. 스트림릿 관리자 페이지 설정을 확인해 주세요.")
     st.stop()
-
-# 3. 사용자 입력 화면 구성
-st.subheader("📋 나의 연애 상황 입력하기")
-
-# 상황 선택 (차별화 포인트)
-situation_type = st.selectbox(
-    "현재 어떤 상황이신가요?",
-    ["선택해주세요", "💘 짝사랑 - 고백 타이밍이나 마음을 알고 싶어요", "💬 썸 - 연인으로 발전하고 싶어요", "👩‍❤️‍👨 연애 중 - 갈등이 있거나 더 잘 지내고 싶어요", "😭 이별/미련 - 마음을 정리하거나 재회를 원해요"]
-)
-
-# 입력 폼
-with st.form("love_counsel_form"):
-    gender_age = st.text_input("본인과 상대방의 성별/나이대 (예: 20대 중반 여성 / 20대 후반 남성)", placeholder="예: 20대 중반 여성 / 20대 후반 남성")
-    context = st.text_area(
-        "자세한 고민 내용을 적어주세요.",
-        placeholder="상황, 두 분의 대화 패턴, 최근에 있었던 서운한 점 등을 자세히 적어주실수록 정확한 분석이 가능합니다.",
-        height=150
+except Exception as init_err:
+    st.error(f"⚠️ 시스템 초기화 에러: {init_err}")
+    st.stop()
+    with st.form(key="mood_form", clear_on_submit=True):
+    st.write("📝 **오늘의 기분 조각 맞추기**")
+    selected_mood = st.selectbox(
+        "지금 이 순간, 네 기분을 가장 잘 표현하는 이모지는 뭐야?",
+        ["😊 행복/뿌듯", "☁️ 평온/무덤덤", "😭 슬픔/지침", "😡 화남/답답", "🧠 불안/생각많음"]
+    )
+    mood_note = st.text_area(
+        "그 기분이 든 이유나 덜어내고 싶은 마음의 짐을 편하게 적어봐.",
+        placeholder="예시: 학업 스트레스 때문에 숨이 턱 막히는 기분이에요. 누구에게도 말 못 해서 속상해요...",
+        height=120
     )
     
-    # 조언 스타일 선택
-    advice_style = st.radio(
-        "원하시는 조언 스타일은?",
-        ["공감 중심 (따뜻한 위로와 격려)", "팩트 폭행 (현실적이고 직설적인 피드백)", "전략 중심 (구체적인 행동 지침과 멘트 추천)"],
-        horizontal=True
-    )
-    
-    submit_button = st.form_submit_button(label="💝 AI 카운셀러에게 상담 받기")
-
-# 4. 상담 로직 실행
-if submit_button:
-    if situation_type == "선택해주세요":
-        st.warning("현재 어떤 상황인지 (짝사랑, 썸, 연애 등) 선택해주세요!")
-    elif not context.strip():
-        st.warning("고민 내용을 입력해주세요!")
+    submit_btn = st.form_submit_button(label="기록하고 마음 처방전 받기 ✨")
+    if submit_btn:
+    if not mood_note.strip():
+        st.warning("이유나 고민을 조금이라도 적어주셔야 마음 상담 샘이 답장을 보낼 수 있어요!")
     else:
-        with st.spinner("AI 카운셀러가 고민을 신중하게 분석하고 있습니다...⏳"):
-            # 프롬프트 엔지니어링 (선택된 옵션에 따른 맞춤형 지시)
-            prompt = f"""
-            너는 연애 심리학을 전공한 다정하고 명쾌한 전문 연애 상담사야. 
-            아래 내담자의 고민을 듣고 진심을 다해 상담해줘.
-
-            [내담자 정보]
-            - 상황: {situation_type}
-            - 당사자 정보: {gender_age if gender_age else "정보 미입력"}
-            - 원하는 조언 스타일: {advice_style}
+        # 오늘 날짜 생성
+        today_str = datetime.today().strftime('%Y-%m-%d')
+        
+        # 임시 세션 저장소에 추가 (새로고침 시 누적 유지됨)
+        st.session_state.mood_history.append({
+            "date": today_str,
+            "mood": selected_mood,
+            "note": mood_note
+        })
+        with st.spinner("마음 상담 선생님이 네 일기를 읽고 따뜻한 편지를 쓰고 있어..."):
+            system_prompt = f"""
+            당신은 청소년(중·고등학생)의 마음의 짐을 덜어주는 매우 부드럽고 다정한 상담 교사입니다.
+            학생이 기록한 이모지 감정태그와 고민 내용을 바탕으로 따뜻한 처방 편지를 작성하세요.
             
-            [고민 내용]
-            {context}
-
+            [학생의 오늘 상태]
+            - 선택한 기분 이모지: {selected_mood}
+            - 털어놓은 이야기: {mood_note}
+            
             [답변 규칙]
-            1. 첫 시작은 내담자의 마음을 따뜻하게 공감해주는 한 문장으로 시작할 것.
-            2. 조언 스타일({advice_style})의 특징을 100% 반영하여 답변할 것. (예: 팩트 폭행이면 돌려 말하지 말고 현실을 짚어줄 것)
-            3. 답변은 다음 3가지 섹션으로 나누어 가독성 좋게 마크다운 문법으로 출력할 것:
-               - ### 🔍 상황 분석 및 심리 파악
-               - ### 💡 맞춤형 연애 솔루션
-               - ### 💬 추천 대화 멘트 (상대방에게 보내기 좋은 카톡이나 대화 예시 1~2개)
-            """
-            
+            1. 절대 훈계하거나 '네가 더 노력해야지' 같은 조언, 설교를 엄금합니다.
+            2. 첫 문장은 학생의 기분과 아픔에 대해 전적으로 공감하고 다독이는 대화로 시작하세요.
+            3. 친근하고 따뜻한 존댓말 구어체(~했구나, ~그랬겠어요, ~해볼까요)를 유지하세요.
+            4. 마지막은 마음이 한결 가벼워질 수 있는 감성 가득한 위로와 응원으로 끝맺어 주세요."""
             try:
-                response = model.generate_content(prompt)
-                
-                st.success("✨ AI 카운셀러의 진단이 완료되었습니다!")
+                response = model.generate_content(system_prompt)
                 st.markdown("---")
-                st.markdown(response.text)
-                st.markdown("---")
-                st.caption("※ 본 상담은 AI의 분석이므로 참고용으로만 활용하시기 바랍니다. 당신의 사랑을 응원합니다! 🌸")
-                
-            except Exception as e:
-                st.error(f"⚠️ 답변을 생성하는 중 오류가 발생했습니다. (원인: {e})")
+                st.success("✉️ **상담 선생님에게서 도착한 파스텔 위로 편지**")
+                st.write(response.text)
+                st.balloons()
+            except Exception as api_err:
+                st.error(f"답장을 불러오는 중 오류가 발생했습니다. (사유: {api_err})")
+               st.markdown("---")
+st.subheader("📅 이번 달 마음 조각 모아보기 (한 달 단위)")
+
+current_month = datetime.today().strftime('%Y-%m')
+st.caption(f"현재 기준 월: {current_month} 에 기록된 마음 데이터입니다.")
+if st.session_state.mood_history:
+    # 이번 달 데이터만 필터링하는 안전장치
+    this_month_data = [item for item in st.session_state.mood_history if item["date"].startswith(current_month)]
+    
+    if not this_month_data:
+        st.info("이번 달에 아직 기록된 기분이 없어요. 첫 감정 조각을 채워보세요!")
+    else:
+        for item in reversed(this_month_data):
+            st.markdown(f"""
+            <div class="mood-box">
+                <span style="color:#6C5B7B; font-weight:bold;">📅 {item['date']}</span> | 
+                <span style="background-color:#FFF5F5; padding:2px 8px; border-radius:8px;">{item['mood']}</span>
+                <p style="margin-top:10px; color:#555555; font-size:15px;">💬 {item['note']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+else:
+    st.info("마음 사서함에 기록된 기분이 아직 없습니다. 오늘부터 가볍게 시작해 보세요!")
+    
