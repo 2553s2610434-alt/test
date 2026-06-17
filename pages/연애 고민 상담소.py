@@ -1,91 +1,81 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. 페이지 기본 설정 및 테마 감성 추가
+# 페이지 기본 설정
 st.set_page_config(
-    page_title="연애 온도계 & AI 처방전",
-    page_icon="❤️",
+    page_title="연애 AI 처방전",
+    page_icon="💌",
     layout="centered"
 )
 
-# 간단한 커스텀 CSS로 연애 앱 분위기 연출
-st.markdown("""
-    <style>
-    .main { background-color: #fff9fa; }
-    h1 { color: #ff4b6e; }
-    .stButton>button { background-color: #ff4b6e; color: white; border-radius: 20px; }
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("❤️ 연애 온도계 & AI 처방전")
-st.subtitle("말 못 할 연애 고민, AI가 온도를 측정하고 처방전을 써드려요.")
+# 앱 제목 및 설명 (에러가 없는 안전한 표준 함수만 사용)
+st.title("💌 연애 온도계 & AI 처방전")
+st.write("말 못 할 연애 고민을 나누어주세요. AI가 상황을 분석하고 맞춤 처방전을 써드립니다.")
 st.write("---")
 
-# 2. Gemini API 인증 및 초기화 (Secrets 안전 처리)
-# Streamlit Cloud의 Secrets 또는 로컬의 secrets.toml에서 키를 가져옵니다.
+# Secrets에서 API 키 안전하게 가져오기
 api_key = st.secrets.get("GEMINI_API_KEY")
 
+# API 설정 및 예외 처리
 if api_key:
-    genai.configure(api_key=api_key)
-    # 가장 빠르고 효율적인 모델인 gemini-2.5-flash-lite 설정
-    model = genai.GenerativeModel('gemini-2.5-flash-lite')
+    try:
+        genai.configure(api_key=api_key)
+        # 요구사항에 명시된 gemini-2.5-flash-lite 모델 지정
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        api_ready = True
+    except Exception as e:
+        st.error(f"API 연결에 실패했습니다. 원인: {e}")
+        api_ready = False
 else:
-    st.warning("⚠️ API 키가 등록되지 않았습니다. 현재는 '체험 모드(예시 답변)'로 작동합니다. AI 기능을 온전히 쓰시려면 우측 사이드바나 Secrets 설정을 확인해주세요.")
+    api_ready = False
+    st.info("💡 배포 전이거나 API 키가 없는 상태입니다. (체험 모드로 작동 중)")
 
-# 사이드바에 API 키 안내 및 앱 소개
-with st.sidebar:
-    st.header("💘 앱 정보")
-    st.write("이 앱은 **gemini-2.5-flash-lite**를 사용하여 당신의 연애 고민을 분석합니다.")
-    if not api_key:
-        st.info("💡 **팁:** Streamlit Community Cloud 배포 시 Advanced Settings -> Secrets에 `GEMINI_API_KEY = '내키'`를 입력하면 정상 작동합니다.")
+# 입력 양식 구성
+st.subheader("📝 나의 연애 고민 작성하기")
 
-# 3. 사용자 입력 화면 구성
-st.subheader("📝 나의 연애 상황 입력하기")
-
-# 단계 선택 (차별화된 맥락 파악)
+# 1. 연애 단계 선택
 stage = st.selectbox(
     "현재 어떤 단계인가요?",
-    ["선택하세요", "💗 썸 / 고백 유예기", "👩‍❤️‍👨 달달한 연애 중", "🥶 권태기 / 말다툼 / 위기", "💔 이별 후 / 재회 고민"]
+    ["선택하세요", "썸 / 고백 준비", "연애 중", "권태기 / 갈등", "이별 후 / 재회 고민"]
 )
 
-# 디테일한 상황 입력
+# 2. 고민 내용 입력
 story = st.text_area(
-    "최근 있었던 일이나 상대방의 태도, 카톡 내용 등을 자세히 적어주세요.",
-    placeholder="예시: 썸남이랑 3번째 데이트를 했는데, 헤어질 때 연락하겠다더니 6시간째 선톡이 없어요. 밀당인가요 식은 걸까요?",
+    "상황이나 고민을 자세히 적어주세요.",
+    placeholder="예시: 연락 문제로 자주 싸우는데 어떻게 대화를 풀어야 할지 모르겠어요.",
     height=150
 )
 
-# 4. 분석하기 버튼 및 로직
-if st.button("🌡️ 연애 온도 측정 & 처방전 받기"):
+# 3. 버튼 클릭 시 로직 수행
+if st.button("🌡️ 연애 온도 측정 및 조언 받기"):
     if stage == "선택하세요":
-        st.error("현재 연애 단계를 선택해주세요!")
+        st.warning("현재 연애 단계를 선택해주세요.")
     elif not story.strip():
-        st.error("고민 내용을 입력해주세요!")
+        st.warning("고민 내용을 입력해주세요.")
     else:
-        with st.spinner("AI 연애 코치가 상황을 분석 중입니다... 🔍"):
+        with st.spinner("AI 상담사가 신중하게 분석하고 있습니다..."):
             
-            # 프롬프트 엔지니어링: 일관된 출력 형식을 위한 가이드라인 제공
+            # AI에게 보낼 프롬프트 구성
             prompt = f"""
-            너는 연애 심리 상담 전문가이자 위트 있고 공감 능력이 뛰어난 연애 코치야.
-            다음 사용자 상황을 분석해서 답변해줘.
+            너는 다정하면서도 현실적인 조언을 주는 전문 연애 상담사야.
+            다음 사용자의 연애 고민을 분석해서 답변해줘.
 
             [사용자 상황]
             - 연애 단계: {stage}
             - 상세 고민: {story}
 
             [답변 규칙]
-            1. 현재 상황에 맞는 '연애 온도(0°C ~ 100°C)'를 숫자로 정하고 이유를 한 줄로 설명해줘.
-            2. 상대방의 심리를 족집게처럼 분석해줘.
-            3. 앞으로 사용자가 취해야 할 행동 지침(처방전)을 구체적인 행동 요령 2-3가지로 나누어 제안해줘.
-            4. 다정하면서도 뼈를 때리는(팩트 폭행) 친근한 반말(혹은 해요체) 톤앤매너를 유지해줘. 너무 딱딱하게 쓰지 마.
+            1. 현재 상황의 '연애 온도(0% ~ 100%)'와 그렇게 판단한 이유를 간결하게 설명해줄 것.
+            2. 상대방의 심리와 현재 문제의 핵심 원인을 분석해줄 것.
+            3. 사용자가 바로 실천할 수 있는 현실적인 행동 지침 2-3가지를 제안해줄 것.
+            4. 존댓말로 작성하되, 친구처럼 친근하고 진심 어린 톤앤매너를 유지할 것.
             """
             
-            if api_key:
+            if api_ready:
                 try:
-                    # AI 모델 호출
+                    # AI 모델 결과 생성
                     response = model.generate_content(prompt)
                     
-                    # 결과 출력
                     st.success("✨ 분석이 완료되었습니다!")
                     st.write("---")
                     st.markdown(response.text)
@@ -93,24 +83,20 @@ if st.button("🌡️ 연애 온도 측정 & 처방전 받기"):
                     st.balloons()
                     
                 except Exception as e:
-                    st.error(f"AI 호출 중 오류가 발생했습니다: {e}")
-                    st.info("잠시 후 다시 시도하거나 API 키 권한을 확인해주세요.")
+                    st.error(f"답변 생성 중 에러가 발생했습니다: {e}")
             else:
-                # API 키가 없을 때 작동하는 오프라인 예시 데모 (초보자 오류 방지 및 체험용)
-                st.info("💡 API 키가 없는 상태이므로 준비된 모범 처방전 샘플을 보여드립니다.")
+                # API 키가 등록되지 않았을 때 작동하는 안전한 데모 화면
                 st.write("---")
+                st.info("현재 API 키가 등록되지 않아 샘플 답변이 제공됩니다. Secrets 설정을 완료하시면 실제 AI 조언을 보실 수 있습니다.")
                 st.markdown(f"""
-                ### 🌡️ 예상 연애 온도: **35°C (미지근함)**
-                *이유: 관심은 있으나 확실한 한 방이 부족하거나, 상대방이 밀당 중일 확률이 높음!*
+                ### 🌡️ 예상 연애 온도: **40%**
+                *이유: 소통의 타이밍이 엇갈려 서운함이 쌓이고 있는 상태입니다.*
 
-                ### 🕵️ 상대방 심리 분석
-                * 입력해주신 단계 **({stage})**의 특성상, 상대방은 현재 당신의 마음을 탐색하고 있거나 본인의 감정에 확신이 서지 않았을 수 있습니다. 혼자 전전긍긍하기보단 상대방의 평소 행동 패턴을 복기해볼 필요가 있어요.
+                ### 🔍 핵심 상황 분석
+                * 입력해주신 **[{stage}]** 단계에서는 서로의 진심을 오해하는 경우가 많습니다. 상대방이 악의가 없다 하더라도, 표현 방식의 차이로 인해 서운함이 증폭되었을 가능성이 큽니다.
 
-                ### 💊 AI 연애 처방전
-                1. **선톡에 연연하지 말기:** 먼저 연락이 오는지 안 오는지 폰만 붙잡고 있으면 본인 멘탈만 상합니다. 취미 생활이나 본인 일에 집중하세요.
-                2. **가벼운 질문 던지기:** 하루 뒤에도 연락이 없다면, 무거운 주제 대신 "오늘 날씨 되게 좋더라! 맛점했어?" 같은 가벼운 톡으로 대화를 자연스럽게 리드해보세요.
+                ### 💊 추천 행동 처방전
+                1. **내 감정 먼저 정리하기:** 감정이 격해진 상태에서 대화하기보다, 내가 정확히 어떤 부분에서 서운했는지 생각 정리하기.
+                2. **'나' 화법으로 대화 시도하기:** "너 왜 그래?"가 아니라 "네가 그렇게 행동할 때 내 마음이 조금 슬펐어"라고 부드럽게 전달해보기.
                 """)
                 st.write("---")
-streamlit
-google-generativeai
-GEMINI_API_KEY = "AI_Studio에서_발급받은_실제_API_키"
