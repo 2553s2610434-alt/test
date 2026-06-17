@@ -1,4 +1,3 @@
-Python
 import streamlit as st
 import google.generativeai as genai
 
@@ -7,12 +6,8 @@ st.set_page_config(page_title="스마트 공부 멘토링 룸", page_icon="📝"
 st.title("📝 스마트 공부 멘토링 룸")
 st.caption("gemini-2.5-flash-lite 모델로 작동하는 맞춤형 공부 조언 챗봇입니다.")
 
-# 2. 챗봇의 페르소나(시스템 지침) 설정
-SYSTEM_INSTRUCTION = """
-당신은 학생들의 학습 습관, 시간 관리, 과목별 공부법을 정성껏 상담해주는 전문 교육 멘토입니다.
-사용자의 학습 고민을 진지하게 듣고, 구체적이고 실천 가능한 공부 전략과 동기부여 메시지를 제공해야 합니다.
-상황에 따라 적절한 이모지를 사용하여 친근하고 격려하는 톤앤매너를 유지해주세요.
-"""
+# 2. 챗봇의 페르소나 설정 (SyntaxError를 방지하기 위해 한 줄 문자열로 안전하게 정의)
+SYSTEM_INSTRUCTION = "당신은 학생들의 학습 습관, 시간 관리, 과목별 공부법을 정성껏 상담해주는 전문 교육 멘토입니다. 사용자의 학습 고민을 진지하게 듣고, 구체적이고 실천 가능한 공부 전략과 동기부여 메시지를 제공해야 합니다. 상황에 따라 적절한 이모지를 사용하여 친근하고 격려하는 톤앤매너를 유지해주세요."
 
 # 3. Streamlit Secrets에서 API 키 가져오기 및 초기화
 try:
@@ -41,7 +36,7 @@ if prompt := st.chat_input("공부법, 시간 관리 등 고민을 편하게 적
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # 챗봇의 답변 생성 과정 (오류 처리 포함)
+    # 챗봇의 답변 생성 과정
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         message_placeholder.markdown("📚 고민을 분석하고 조언을 준비 중입니다...")
@@ -53,9 +48,9 @@ if prompt := st.chat_input("공부법, 시간 관리 등 고민을 편하게 적
                 system_instruction=SYSTEM_INSTRUCTION
             )
             
-            # 대화 맥락을 유지하기 위해 기존 기록 변환 (Gemini 형식에 맞춤)
+            # 대화 맥락 유지용 기록 변환
             history = []
-            for msg in st.session_state.messages[:-1]: # 방금 넣은 prompt 제외한 이전 기록
+            for msg in st.session_state.messages[:-1]:
                 role = "user" if msg["role"] == "user" else "model"
                 history.append({"role": role, "parts": [msg["content"]]})
             
@@ -69,17 +64,5 @@ if prompt := st.chat_input("공부법, 시간 관리 등 고민을 편하게 적
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             
         except Exception as e:
-            # API 호출 실패 등 예외 상황 처리
             error_msg = f"죄송합니다. 조언을 생성하는 중에 오류가 발생했어요. 😢 (오류 내용: {e})"
             message_placeholder.markdown(error_msg)
-2. requirements.txt (필요 패키지 목록)
-GitHub 리포지토리 루트(최상위 폴더)에 함께 올려야 Streamlit Cloud가 라이브러리를 자동으로 인식하여 설치합니다.
-
-Plaintext
-streamlit>=1.30.0
-google-generativeai>=0.8.0
-3. Streamlit Secrets (API 키 설정 형식)
-Streamlit Community Cloud에 배포할 때, 대시보드의 Settings -> Secrets 메뉴(Advanced settings 내부)에 아래 형식으로 API 키를 입력하셔야 합니다.
-
-Ini, TOML
-GEMINI_API_KEY = "AIzaSyYourActualGeminiApiKeyHere..."
