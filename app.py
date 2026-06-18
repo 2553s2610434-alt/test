@@ -2,18 +2,19 @@ import streamlit as st
 import google.generativeai as genai
 import random
 from datetime import datetime
+import time
 
 # ====================================================================
 # 1. 페이지 기본 설정 (가장 최상단 필수 배치)
 # ====================================================================
 st.set_page_config(
-    page_title="파스텔 밤하늘 마음 사서함",
+    page_title="파스텔 밤하늘 감정 보관함",
     page_icon="🌙",
     layout="centered"
 )
 
 # ====================================================================
-# 2. 몽환적인 밤하늘 파스텔톤 커스텀 CSS (하늘색~보라색 그라데이션 및 하늘 요소)
+# 2. 몽환적인 밤하늘 파스텔톤 커스텀 CSS (하늘색~보라색 그라데이션)
 # ====================================================================
 st.markdown("""
     <style>
@@ -71,7 +72,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ====================================================================
-# 3. 유명인들의 꿈과 용기에 관한 명언 데이터 세팅 (추가 반영)
+# 3. 유명인들의 꿈과 용기에 관한 명언 데이터 세팅
 # ====================================================================
 FAMOUS_QUOTES = [
     "“꿈을 이루고자 하는 용기만 있다면 모든 꿈을 이룰 수 있다.” — 월트 디즈니",
@@ -93,7 +94,7 @@ FAMOUS_QUOTES = [
 if "today_quote" not in st.session_state:
     st.session_state.today_quote = random.choice(FAMOUS_QUOTES)
 
-# 한 달 단위 감정 누적 저장소 (기본 샘플 데이터 포함)
+# 감정 누적 저장소 (기본 샘플 데이터 포함)
 if "mood_history" not in st.session_state:
     st.session_state.mood_history = [
         {"date": "2026-06-01", "mood": "🧠 불안/생각많음", "note": "진로에 대한 생각이 많아 밤하늘을 보며 뒤척였다."},
@@ -101,19 +102,18 @@ if "mood_history" not in st.session_state:
     ]
 
 # ====================================================================
-# 4. [원하는 기능] 들어오자마자 명언 띄우기 (하늘 배너 형태)
+# 4. [원하는 기능] 들어오자마자 명언 띄우기
 # ====================================================================
 st.info(f"✨🌙 **오늘 밤, 너의 하늘에 뜬 위로의 별 하나**\n\n{st.session_state.today_quote}")
 
 # ====================================================================
-# 5. 메인 화면 및 밤하늘 데코레이션 요소
+# 5. 메인 화면 타이틀 (감정 보관함으로 변경 및 요청 문구 삭제)
 # ====================================================================
-st.title("🌌 파스텔 밤하늘 사서함")
-st.write("☁️ ✨ *쏟아지는 별빛과 구름 사이로, 오늘 네 마음에 쌓인 짐을 편하게 내려놓으렴.*")
+st.title("🌌 감정 보관함")  # ◀ 밤하늘사서함에서 감정보관함으로 변경
 st.markdown("---")
 
 # ====================================================================
-# 6. Gemini API 독립 초기화 (에러 완전 방어)
+# 6. Gemini API 독립 초기화
 # ====================================================================
 api_ready = False
 try:
@@ -127,7 +127,7 @@ except Exception as init_err:
     st.error(f"⚠️ API 연동 초기화 에러: {init_err}")
 
 # ====================================================================
-# 7. 이모지 기분 기록 폼 (깔끔하고 투명도 있는 디자인)
+# 7. 이모지 기분 기록 폼
 # ====================================================================
 with st.form(key="mood_form", clear_on_submit=True):
     st.write("🌙 **오늘 밤, 내 마음의 날씨 조각**")
@@ -149,7 +149,7 @@ with st.form(key="mood_form", clear_on_submit=True):
     submit_btn = st.form_submit_button(label="밤하늘로 편지 띄우기 🚀")
 
 # ====================================================================
-# 8. 제출 처리 및 Gemini AI 연동 로직
+# 8. 제출 처리 및 몽환적인 열기구 상승 모션 구현
 # ====================================================================
 if submit_btn:
     if not mood_note.strip():
@@ -165,6 +165,22 @@ if submit_btn:
             "note": mood_note
         })
         
+        # 몽환적인 열기구 이륙 실시간 애니메이션 연출 구역
+        balloon_placeholder = st.empty()
+        for i in range(3):
+            # 층층이 올라가는 열기구와 밤하늘 별 무리를 텍스트 애니메이션으로 매칭
+            up_spaces = "\n" * (3 - i)
+            down_spaces = "\n" * i
+            balloon_placeholder.markdown(f"""
+            <div style="text-align:center; font-size: 35px; transition: all 0.5s ease;">
+                {up_spaces}✨ ✨ 🎈 🧸 ✨ ✨<br>
+                <span style="font-size:15px; color:#5B6A8A;">네 마음을 담은 열기구가 밤하늘 속으로 은은하게 떠오르는 중...</span>
+                {down_spaces}
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(0.6)
+        balloon_placeholder.empty()
+
         # AI 상담 편지 생성 구역
         with st.spinner("마음 사서함 선생님이 달빛 아래에서 네 일기를 읽고 답장을 쓰고 있어..."):
             system_prompt = f"""
@@ -187,15 +203,15 @@ if submit_btn:
                 st.markdown("---")
                 st.success("✉️ **달빛을 타고 도착한 위로의 편지**")
                 st.write(response.text)
-                st.balloons()  # 기분 전환용 애니메이션
+                st.snow()  # 몽환적인 밤하늘 분위기에 맞춰 하얀 별빛 가루가 내리는 효과로 변경
             except Exception as api_err:
                 st.error(f"답장을 생성하는 중 API 오류가 발생했습니다: {api_err}")
 
 # ====================================================================
-# 9. 한 달 단위 모아보기 타임라인 (추가 요청사항 유지)
+# 9. 이번 달 마음 조각 모아보기 타임라인 ((한달단위) 글자 삭제 완료)
 # ====================================================================
 st.markdown("---")
-st.subheader("📅 이번 달 마음 조각 모아보기 (한 달 단위)")
+st.subheader("📅 이번 달 마음 조각 모아보기") # ◀ (한달단위) 문구 삭제
 
 current_month = datetime.today().strftime('%Y-%m')
 st.caption(f"현재 기준 월: **{current_month}** 에 밤하늘로 보낸 소중한 기록입니다.")
@@ -206,12 +222,11 @@ if st.session_state.mood_history:
     if not this_month_data:
         st.info("이번 달에 아직 기록된 기분이 없어요. 첫 감정 조각을 채워보세요!")
     else:
-        # 최신 글이 상단에 오도록 정렬하여 가독성이 높은 파스텔 박스로 출력
         for item in reversed(this_month_data):
             st.markdown(f"""
             <div class="mood-box">
                 <span style="color:#5B6A8A; font-weight:bold;">🌙 {item['date']}</span> | 
-                <span style="background-color:#E8D7F1; color:#4A3B56; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:bold;">{item['mood']}</span>
+                <span style="background-color:#E8D7F1; color:#4A3E56; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:bold;">{item['mood']}</span>
                 <p style="margin-top:12px; color:#444444; font-size:15px; line-height:1.6;">💬 {item['note']}</p>
             </div>
             """, unsafe_allow_html=True)
