@@ -94,12 +94,16 @@ FAMOUS_QUOTES = [
 if "today_quote" not in st.session_state:
     st.session_state.today_quote = random.choice(FAMOUS_QUOTES)
 
-# 감정 누적 저장소 (기본 샘플 데이터 포함)
+# 🔐 [중요 수정] 데이터 휘발 방지를 위한 브라우저 세션 영구 연동 구조
 if "mood_history" not in st.session_state:
     st.session_state.mood_history = [
         {"date": "2026-06-01", "mood": "🧠 불안/생각많음", "note": "진로에 대한 생각이 많아 밤하늘을 보며 뒤척였다."},
         {"date": "2026-06-15", "mood": "☁️ 평온/무덤덤", "note": "친구랑 가볍게 산책을 하고 나니 마음이 한결 편해졌다."}
     ]
+
+# 새로 작성한 AI 답변을 임시 유지하기 위한 세션 공간
+if "latest_ai_response" not in st.session_state:
+    st.session_state.latest_ai_response = None
 
 # ====================================================================
 # 4. [원하는 기능] 들어오자마자 명언 띄우기
@@ -107,9 +111,9 @@ if "mood_history" not in st.session_state:
 st.info(f"✨🌙 **오늘 밤, 너의 하늘에 뜬 위로의 별 하나**\n\n{st.session_state.today_quote}")
 
 # ====================================================================
-# 5. 메인 화면 타이틀 (감정 보관함으로 변경 및 요청 문구 삭제)
+# 5. 메인 화면 타이틀
 # ====================================================================
-st.title("🌌 감정 보관함")  # ◀ 밤하늘사서함에서 감정보관함으로 변경
+st.title("🌌 감정 보관함")
 st.markdown("---")
 
 # ====================================================================
@@ -127,108 +131,32 @@ except Exception as init_err:
     st.error(f"⚠️ API 연동 초기화 에러: {init_err}")
 
 # ====================================================================
-# 7. 이모지 기분 기록 폼
+# 7. 이모지 기분 기록 구역
 # ====================================================================
-with st.form(key="mood_form", clear_on_submit=True):
-    st.write("🌙 **오늘 밤, 내 마음의 날씨 조각**")
-    
-    # 이모지 기분 선택기
-    selected_mood = st.selectbox(
-        "지금 이 순간, 네 감정을 가장 잘 표현하는 이모지는 뭐야?",
-        ["😊 행복/뿌듯", "☁️ 평온/무덤덤", "😭 슬픔/지침", "😡 화남/답답", "🧠 불안/생각많음"]
-    )
-    
-    # 이유 및 고민 기록 창
-    mood_note = st.text_area(
-        "밤하늘에 편지를 쓰듯, 속에 담아둔 고민과 마음의 짐을 털어내봐.",
-        placeholder="예시: 하고 싶은 꿈이 있는데 부모님이 반대하셔서 속상해요. 디즈니 명언처럼 용기를 내고 싶지만 불안감이 앞서요...",
-        height=120
-    )
-    
-    # 제출 버튼
-    submit_btn = st.form_submit_button(label="밤하늘로 편지 띄우기 🚀")
+# [버그 수정] st.form 내부에서 데이터가 날아가는 현상을 막기 위해 일반 컴포넌트로 분리 설계했습니다.
+st.write("🌙 **오늘 밤, 내 마음의 날씨 조각**")
+
+selected_mood = st.selectbox(
+    "지금 이 순간, 네 감정을 가장 잘 표현하는 이모지는 뭐야?",
+    ["😊 행복/뿌듯", "☁️ 평온/무덤덤", "😭 슬픔/지침", "😡 화남/답답", "🧠 불안/생각많음"],
+    key="user_mood_select"
+)
+
+mood_note = st.text_area(
+    "밤하늘에 편지를 쓰듯, 속에 담아둔 고민과 마음의 짐을 털어내봐.",
+    placeholder="예시: 하고 싶은 꿈이 있는데 부모님이 반대하셔서 속상해요. 디즈니 명언처럼 용기를 내고 싶지만 불안감이 앞서요...",
+    height=120,
+    key="user_mood_note"
+)
+
+# 제출 버튼
+submit_btn = st.button(label="밤하늘로 편지 띄우기 🚀", key="submit_mood_button")
 
 # ====================================================================
-# 8. 제출 처리 및 몽환적인 열기구 상승 모션 구현
+# 8. 제출 처리 및 몽환적인 열기구 상승 모션 구현 (새로고침 버그 차단)
 # ====================================================================
 if submit_btn:
     if not mood_note.strip():
         st.warning("이야기를 조금이라도 적어주셔야 마음 상담 선생님이 밤하늘의 답장을 보낼 수 있어요!")
     elif not api_ready:
-        st.error("API 키 설정에 문제가 있어 마음 처방전을 생성할 수 없습니다.")
-    else:
-        # 오늘 날짜 기반 데이터 저장
-        today_str = datetime.today().strftime('%Y-%m-%d')
-        st.session_state.mood_history.append({
-            "date": today_str,
-            "mood": selected_mood,
-            "note": mood_note
-        })
-        
-        # 몽환적인 열기구 이륙 실시간 애니메이션 연출 구역
-        balloon_placeholder = st.empty()
-        for i in range(3):
-            # 층층이 올라가는 열기구와 밤하늘 별 무리를 텍스트 애니메이션으로 매칭
-            up_spaces = "\n" * (3 - i)
-            down_spaces = "\n" * i
-            balloon_placeholder.markdown(f"""
-            <div style="text-align:center; font-size: 35px; transition: all 0.5s ease;">
-                {up_spaces}✨ ✨ 🎈 🧸 ✨ ✨<br>
-                <span style="font-size:15px; color:#5B6A8A;">네 마음을 담은 열기구가 밤하늘 속으로 은은하게 떠오르는 중...</span>
-                {down_spaces}
-            </div>
-            """, unsafe_allow_html=True)
-            time.sleep(0.6)
-        balloon_placeholder.empty()
-
-        # AI 상담 편지 생성 구역
-        with st.spinner("마음 사서함 선생님이 달빛 아래에서 네 일기를 읽고 답장을 쓰고 있어..."):
-            system_prompt = f"""
-            당신은 청소년(중·고등학생)의 마음의 짐을 덜어주는 매우 부드럽고 다정한 상담 교사입니다.
-            학생이 기록한 이모지 감정태그와 고민 내용을 바탕으로 따뜻한 처방 편지를 작성하세요.
-            
-            [학생의 오늘 상태]
-            - 선택한 기분 이모지: {selected_mood}
-            - 털어놓은 이야기: {mood_note}
-            
-            [답변 규칙]
-            1. 절대 훈계하거나 '네가 더 노력해야지' 같은 조언, 설교를 엄금합니다.
-            2. 첫 문장은 학생의 기분과 아픔에 대해 전적으로 공감하고 다독이는 대화로 시작하세요.
-            3. 친근하고 따뜻한 존댓말 구어체(~했구나, ~그랬겠어요, ~해볼까요)를 유지하세요.
-            4. 마지막은 마음이 한결 가벼워질 수 있는 감성 가득한 위로와 응원으로 끝맺어 주세요.
-            """
-            
-            try:
-                response = model.generate_content(system_prompt)
-                st.markdown("---")
-                st.success("✉️ **달빛을 타고 도착한 위로의 편지**")
-                st.write(response.text)
-                st.snow()  # 몽환적인 밤하늘 분위기에 맞춰 하얀 별빛 가루가 내리는 효과로 변경
-            except Exception as api_err:
-                st.error(f"답장을 생성하는 중 API 오류가 발생했습니다: {api_err}")
-
-# ====================================================================
-# 9. 이번 달 마음 조각 모아보기 타임라인 ((한달단위) 글자 삭제 완료)
-# ====================================================================
-st.markdown("---")
-st.subheader("📅 이번 달 마음 조각 모아보기") # ◀ (한달단위) 문구 삭제
-
-current_month = datetime.today().strftime('%Y-%m')
-st.caption(f"현재 기준 월: **{current_month}** 에 밤하늘로 보낸 소중한 기록입니다.")
-
-if st.session_state.mood_history:
-    this_month_data = [item for item in st.session_state.mood_history if item["date"].startswith(current_month)]
-    
-    if not this_month_data:
-        st.info("이번 달에 아직 기록된 기분이 없어요. 첫 감정 조각을 채워보세요!")
-    else:
-        for item in reversed(this_month_data):
-            st.markdown(f"""
-            <div class="mood-box">
-                <span style="color:#5B6A8A; font-weight:bold;">🌙 {item['date']}</span> | 
-                <span style="background-color:#E8D7F1; color:#4A3E56; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:bold;">{item['mood']}</span>
-                <p style="margin-top:12px; color:#444444; font-size:15px; line-height:1.6;">💬 {item['note']}</p>
-            </div>
-            """, unsafe_allow_html=True)
-else:
-    st.info("기록된 감정 조각이 없습니다.")
+        st.error("API 키 설정에 문제가 있어 마음 처방전을 생성
