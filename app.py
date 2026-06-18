@@ -2,7 +2,6 @@ import streamlit as st
 import google.generativeai as genai
 import random
 from datetime import datetime
-import time
 
 # ====================================================================
 # 1. 페이지 기본 설정 (가장 최상단 필수 배치)
@@ -92,7 +91,7 @@ div.stAlert {
 # 3. 유명인들의 꿈과 용기에 관한 명언 데이터 세팅
 # ====================================================================
 FAMOUS_QUOTES = [
-    "“꿈을 이루고자 하는 용기만 있다면 모든 꿈을 이룰 수 있다.” — 월트 디즈니",
+    "“꿈을 이루고자 하는 용기만 있다면 모든 꿈을 이굴 수 있다.” — 월트 디즈니",
     "“만약 한 사람이 교육을 소홀히 한다면, 그는 생이 다할 때까지 한 발을 절며 걷는 것이다.” — 플라톤",
     "“행복은 종종 당신이 열어둔 지도 몰랐던 문을 통해 살금살금 들어온다.” — 존 베리모어",
     "“당신이 성장할 때, 세상도 함께 성장한다.” — 존 F. 케네디",
@@ -118,16 +117,17 @@ if "mood_history" not in st.session_state:
         {"date": "2026-06-15", "mood": "☁️ 평온/무덤덤", "note": "친구랑 가볍게 산책을 하고 나니 마음이 한결 편해졌다."}
     ]
 
-# 애니메이션 상태 및 AI 피드백 문장 유지 공간 지정
-if "animation_active" not in st.session_state:
-    st.session_state.animation_active = False
+# AI 피드백 문장 유지 공간 지정
 if "ai_response_text" not in st.session_state:
     st.session_state.ai_response_text = None
+if "trigger_balloon" not in st.session_state:
+    st.session_state.trigger_balloon = False
 
 # ====================================================================
 # 4. 들어오자마자 명언 띄우기
 # ====================================================================
 st.info(f"✨🌙 **오늘 밤, 너의 하늘에 뜬 위로의 별 하나**\n\n{st.session_state.today_quote}")
+
 # ====================================================================
 # 5. 메인 화면 타이틀
 # ====================================================================
@@ -170,7 +170,7 @@ mood_note = st.text_area(
 submit_btn = st.button(label="밤하늘로 편지 띄우기 🚀", key="btn_key")
 
 # ====================================================================
-# 8. 애니메이션 실행 및 영구 저장 연동
+# 8. 데이터 처리 및 AI 상담 연동 (DOM 충돌 우려 요소 전면 수정)
 # ====================================================================
 if submit_btn:
     if not mood_note.strip():
@@ -178,7 +178,7 @@ if submit_btn:
     elif not api_ready:
         st.error("⚠️ API 키 설정에 문제가 있어 마음 처방전을 생성할 수 없습니다.")
     else:
-        # 1. 데이터 저장 (즉시 브라우저 메모리에 밀어 넣어 영구 박제)
+        # 1. 데이터 저장 (타임라인 즉시 업데이트용)
         today_str = datetime.today().strftime('%Y-%m-%d')
         st.session_state.mood_history.append({
             "date": today_str,
@@ -186,17 +186,10 @@ if submit_btn:
             "note": mood_note
         })
         
-        # 2. 🎈 CSS 효과를 이용하여 화면 하단에서 위로 날아가는 진짜 열기구 상승 모션 구현
-        st.session_state.animation_active = True
-        balloon_html = st.empty()
-        balloon_html.markdown('<div class="hot-air-balloon">🎈☁️✨</div>', unsafe_allow_html=True)
-        
-        # 열기구가 아름답게 지나갈 수 있도록 3초 대기 지연
-        time.sleep(3.0)
-        balloon_html.empty()
-        st.session_state.animation_active = False
+        # 열기구 상승 트리거 활성화
+        st.session_state.trigger_balloon = True
 
-        # 3. AI 상담 선생님 피드백 생성 및 고정 버퍼에 캐싱
+        # 2. AI 상담 선생님 피드백 생성
         with st.spinner("마음 사서함 선생님이 달빛 아래에서 네 일기를 읽고 답장을 쓰고 있어..."):
             system_prompt = f"""
             당신은 청소년(중·고등학생)의 마음의 짐을 덜어주는 매우 부드럽고 다정한 상담 교사입니다.
@@ -215,11 +208,15 @@ if submit_btn:
             try:
                 response = model.generate_content(system_prompt)
                 st.session_state.ai_response_text = response.text
-                st.rerun() # 강제 화면 새로고침으로 데이터 리스트에 실시간 즉시 로딩 유도
             except Exception as api_err:
                 st.error(f"답장을 생성하는 중 API 오류가 발생했습니다: {api_err}")
 
-# AI 답변 출력 (세션 고정형 렌더링으로 페이지 새로고침 시 증발 차단)
+# 🎈 렌더링 시점에 안전하게 열기구 띄우기 (리런/DOM 충돌 제거)
+if st.session_state.trigger_balloon:
+    st.markdown('<div class="hot-air-balloon">🎈☁️✨</div>', unsafe_allow_html=True)
+    st.session_state.trigger_balloon = False # 다음 렌더링 시 사라지도록 초기화
+
+# AI 답변 출력 (세션 고정형 렌더링)
 if st.session_state.ai_response_text:
     st.markdown("---")
     st.success("✉️ **달빛을 타고 도착한 위로의 편지**")
@@ -240,14 +237,15 @@ if st.session_state.mood_history:
     if not this_month_data:
         st.info("이번 달에 아직 기록된 기분이 없어요. 첫 감정 조각을 채워보세요!")
     else:
-        # 방금 새로 작성한 이야기까지 온전히 포함하여 최신글 순으로 리스트업
-        for item in reversed(this_month_data):
-            st.markdown(f"""
-            <div class="mood-box">
-                <span style="color:#5B6A8A; font-weight:bold;">🌙 {item['date']}</span> | 
-                <span style="background-color:#E8D7F1; color:#4A3E56; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:bold;">{item['mood']}</span>
-                <p style="margin-top:12px; color:#444444; font-size:15px; line-height:1.6;">💬 {item['note']}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        for i, item in enumerate(reversed(this_month_data)):
+            # 무작위 중복 방지 및 HTML 노드 추적을 안정화하기 위한 고유 컨테이너 사용
+            with st.container():
+                st.markdown(f"""
+                <div class="mood-box">
+                    <span style="color:#5B6A8A; font-weight:bold;">🌙 {item['date']}</span> | 
+                    <span style="background-color:#E8D7F1; color:#4A3E56; padding:3px 10px; border-radius:10px; font-size:14px; font-weight:bold;">{item['mood']}</span>
+                    <p style="margin-top:12px; color:#444444; font-size:15px; line-height:1.6;">💬 {item['note']}</p>
+                </div>
+                """, unsafe_allow_html=True)
 else:
     st.info("기록된 감정 조각이 없습니다.")
