@@ -7,7 +7,7 @@ from datetime import datetime
 # 1. 페이지 기본 설정 (가장 최상단 필수 배치)
 # ====================================================================
 st.set_page_config(
-    page_title="파스텔 밤하늘 감정 보관함",
+    page_title="감정 보관소🌃",  # 👈 이 글자가 왼쪽 메뉴의 'app' 대신 표시됩니다!
     page_icon="🌙",
     layout="centered"
 )
