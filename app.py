@@ -11,7 +11,16 @@ st.set_page_config(
     page_icon="🌙",
     layout="centered"
 )
+st.markdown("""
+    <style>
+        /* 기본으로 뜨는 사이드바 내비게이션 숨기기 */
+        div[data-testid="stSidebarNav"] {display: none !important;}
+    </style>
+""", unsafe_allow_html=True)
 
+# 내가 원하는 이름으로 사이드바 메뉴 다시 만들기
+st.sidebar.title("나의 감정 앱") # 👈 'app' 대신 들어갈 대제목을 적으세요!
+st.sidebar.markdown("감정보관소🌃")
 # ====================================================================
 # 2. 몽환적인 밤하늘 그라데이션 및 실시간 열기구 상승 애니메이션 CSS 효과
 # ====================================================================
