@@ -13,15 +13,23 @@ st.set_page_config(
 )
 st.markdown("""
     <style>
-        /* 기본으로 뜨는 사이드바 내비게이션 숨기기 */
-        div[data-testid="stSidebarNav"] {display: none !important;}
+        /* 1. 사이드바 첫 번째 메뉴(app) 안의 텍스트만 투명하게 숨깁니다 */
+        div[data-testid="stSidebarNav"] ul li:first-child a span:first-child {
+            font-size: 0 !important;
+            color: transparent !important;
+        }
+        
+        /* 2. 숨겨진 텍스트 자리에 '감정보관소🌃' 글자를 강제로 주입합니다 */
+        div[data-testid="stSidebarNav"] ul li:first-child a span:first-child::before {
+            content: "감정보관소🌃" !important;
+            font-size: 14px !important; /* 기본 Streamlit 폰트 크기 */
+            color: #31333F !important;  /* 기본 사이드바 글자 색상 */
+            visibility: visible !important;
+            display: inline-block !important;
+        }
     </style>
 """, unsafe_allow_html=True)
-
-# 내가 원하는 이름으로 사이드바 메뉴 다시 만들기
-st.sidebar.title("나의 감정 앱") # 👈 'app' 대신 들어갈 대제목을 적으세요!
-st.sidebar.markdown("감정보관소🌃")
-# ====================================================================
+====================================================
 # 2. 몽환적인 밤하늘 그라데이션 및 실시간 열기구 상승 애니메이션 CSS 효과
 # ====================================================================
 st.markdown('''
