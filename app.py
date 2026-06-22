@@ -2,16 +2,35 @@ import streamlit as st
 import google.generativeai as genai
 import random
 from datetime import datetime
-import time
 
 # ====================================================================
-# 1. 페이지 기본 설정 (가장 최상단 필수 배치)
+# 1. 페이지 기본 설정 및 사이드바 이름 변경 (가장 최상단 필수 배치)
 # ====================================================================
 st.set_page_config(
     page_title="파스텔 밤하늘 감정 보관함",
     page_icon="🌙",
     layout="centered"
 )
+
+# 🌌 왼쪽 사이드바 'app' 글자만 안전하게 '감정보관소🌃'로 교체하는 CSS
+st.markdown("""
+    <style>
+        /* 1. 사이드바 첫 번째 메뉴(app) 안의 텍스트만 투명하게 숨깁니다 */
+        div[data-testid="stSidebarNav"] ul li:first-child a span:first-child {
+            font-size: 0 !important;
+            color: transparent !important;
+        }
+        
+        /* 2. 숨겨진 텍스트 자리에 '감정보관소🌃' 글자를 강제로 주입합니다 */
+        div[data-testid="stSidebarNav"] ul li:first-child a span:first-child::before {
+            content: "감정보관소🌃" !important;
+            font-size: 14px !important; 
+            color: #31333F !important;  
+            visibility: visible !important;
+            display: inline-block !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # ====================================================================
 # 2. 몽환적인 밤하늘 그라데이션 및 실시간 열기구 상승 애니메이션 CSS 효과
@@ -107,9 +126,36 @@ FAMOUS_QUOTES = [
     "“행동은 모든 성공의 기초적인 핵심 요건이다.” — 파블로 피카소"
 ]
 
-# 화면 새로고침 시 명언 고정용 세션 관리
 if "today_quote" not in st.session_state:
     st.session_state.today_quote = random.choice(FAMOUS_QUOTES)
 
-# 🔐 서버 새로고침 시 절대 날아가지 않는 세션 메모리 바인딩
-if "mood
+if "mood_history" not in st.session_state:
+    st.session_state.mood_history = [
+        {"date": "2026-06-01", "mood": "🧠 불안/생각많음", "note": "진로에 대한 생각이 많아 밤하늘을 보며 뒤척였다."},
+        {"date": "2026-06-15", "mood": "☁️ 평온/무덤덤", "note": "친구랑 가볍게 산책을 하고 나니 마음이 한결 편해졌다."}
+    ]
+
+if "ai_response_text" not in st.session_state:
+    st.session_state.ai_response_text = None
+if "trigger_balloon" not in st.session_state:
+    st.session_state.trigger_balloon = False
+
+# ====================================================================
+# 4. 들어오자마자 명언 띄우기
+# ====================================================================
+st.info(f"✨🌙 **오늘 밤, 너의 하늘에 뜬 위로의 별 하나**\n\n{st.session_state.today_quote}")
+
+# ====================================================================
+# 5. 메인 화면 타이틀
+# ====================================================================
+st.title("🌌 감정 보관함")
+st.markdown("---")
+
+# ====================================================================
+# 6. Gemini API 독립 초기화
+# ====================================================================
+api_ready = False
+try:
+    gemini_key = st.secrets["GEMINI_API_KEY"]
+    genai.configure(api_key=gemini_key)
+    model = genai.Gener
